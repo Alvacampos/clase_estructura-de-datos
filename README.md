@@ -6,6 +6,9 @@ Universidad Blas Pascal
 
 Alumno: Gonzalo Ramiro Alvarez Campos
 
+## Aclaracion
+Cada parte de los ejercicio va quedar en un PR por separado para que sea mas facil evaluar.
+
 # Plataforma de análisis de incidentes y rutas
 
 ## Descripción general
