@@ -13,4 +13,7 @@ class Event():
         
     def __str__(self):
         return f"Event(id={self.id}, timestamp={self.timestamp}, category={self.category}, priority={self.priority}, text={self.text}, origin={self.origin}, destination={self.destination})"
+    
+    def print_event(self):
+        print(self.__str__())
         
