@@ -5,3 +5,6 @@ Examen Parcial de Algoritmos y Estructuras de Datos
 Universidad Blas Pascal
 
 Alumno: Gonzalo Ramiro Alvarez Campos
+
+## Aclaracion
+Cada parte de los ejercicio va quedar en un PR por separado para que sea mas facil evaluar.
