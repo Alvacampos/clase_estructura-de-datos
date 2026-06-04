@@ -1,6 +1,6 @@
-from models.event import Event
 from queues.priority_queue import PriorityQueue
 from queues.incident_queue import IncidentQueue 
+from storage.event_store import EventStore
 from utils.utils import divider, generate_dummy_events
 
 
@@ -8,19 +8,15 @@ def main():
     divider()
     print('Dummy Events:')
     # Create some dummy events
-    events = generate_dummy_events(3)
-    events[0].print_event()
-    events[1].print_event()
-    events[2].print_event()
+    events = generate_dummy_events(100)
     divider()
 
     # Create an instance of the PriorityQueue
     priority_queue = PriorityQueue()
     
     # Add some items to the priority queue with different priorities
-    priority_queue.add(events[0], events[0].priority)  # High priority
-    priority_queue.add(events[1], events[1].priority)  # Medium priority
-    priority_queue.add(events[2], events[2].priority)  # Low priority
+    for event in events[:10]:  # Add first 10 events for demonstration
+        priority_queue.add(event, event.priority)
 
 
     print('Priority Queue:')
@@ -43,6 +39,19 @@ def main():
     print('-', incident_queue.get_next_incident())  # Output: "Incident 1"
     print('-', incident_queue.get_next_incident())  # Output: "Incident 2"
     print('-', incident_queue.get_next_incident())  # Output: "Incident 3"
+    
+    divider()
+    print('Event Store Test:')
+    event_store = EventStore()
+    for event in events:
+        event_store.add_event(event)
+
+    # Test searching for events by ID
+    found_event = event_store.search_by_id(events[75].id)
+    if found_event:
+        print(f'Found event: {found_event.text}')
+    else:
+        print('Event not found.')
 
 if __name__ == "__main__":
     main()
