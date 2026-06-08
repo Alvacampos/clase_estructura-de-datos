@@ -6,8 +6,9 @@ Universidad Blas Pascal
 
 Alumno: Gonzalo Ramiro Alvarez Campos
 
-## Aclaracion
-Cada parte de los ejercicio va quedar en un PR por separado para que sea mas facil evaluar.
+## Aclaración
+
+Cada parte de los ejercicios va a quedar en un PR por separado para que sea más fácil evaluar.
 
 # Plataforma de análisis de incidentes y rutas
 
@@ -137,6 +138,42 @@ Las dos estrategias clásicas para resolverlas son:
 
 Python usa una variante de direccionamiento abierto en su implementación de `dict`, y redimensiona automáticamente la tabla cuando se llena para mantener la performance. Como usuario no me tengo que preocupar por la función hash ni por las colisiones: el lenguaje las resuelve transparentemente, y por eso elegí no implementar una tabla hash propia.
 
+### Ejercicio 5 — Síntesis integradora
+
+#### a) Decisiones que mejoraron el rendimiento
+
+El uso de **heap** y **deque** mejora ampliamente la performance del programa: son estructuras altamente eficientes y no reinventan la rueda, sino que utilizan herramientas ya testeadas y con soporte del ecosistema de Python. Por ejemplo, `deque.popleft()` es O(1) mientras que `list.pop(0)` es O(n) — y la diferencia se nota apenas hay un volumen razonable de datos.
+
+El uso de `dict` para el `Index` permite un acceso rápido y cómodo a la información (búsqueda O(1) promedio), además de ser un favorito personal y un tipo de dato con el cual tengo mucha experiencia.
+
+A nivel de algoritmos, la elección de **Merge Sort sobre Bubble Sort** marcó la diferencia más cuantificable del trabajo: para 1.000 elementos, Bubble tarda ~0.36 s mientras que Merge tarda ~0.004 s. Es la misma tarea (ordenar) pero con dos órdenes de magnitud de diferencia, sólo por elegir bien el algoritmo.
+
+#### b) Trade-off tiempo vs memoria
+
+Al elegir entre algoritmos de sorting se nota claramente cómo el Big-O es una herramienta vital para analizar **preventivamente** los algoritmos disponibles. Antes de tipear, ya podemos saber cuál va a escalar y cuál no, y de paso evitar dolores de cabeza. También aprendemos que muchas veces hay que hacer concesiones: **tiempo vs memoria**.
+
+Dónde aparece este trade-off en el sistema:
+
+- **Merge Sort:** ganamos tiempo (O(n log n)) pero pagamos memoria (O(n) extra para las particiones).
+- **`Index` (dict):** ganamos tiempo de búsqueda (O(1) promedio) pero pagamos memoria (un slot por clave en la tabla hash).
+- **Búsqueda binaria:** ganamos tiempo por consulta (O(log n)) pero pagamos el costo previo de mantener la lista ordenada (O(n log n) inicial + O(n) en memoria).
+
+En todos los casos, la decisión depende del **patrón de uso real**: si vamos a buscar muchas veces, vale la pena pagar la memoria del índice; si es una búsqueda única, no.
+
+#### c) POO + modularidad + estructuras + medición → software mantenible
+
+Todo decanta en la **escalabilidad** y la **mantenibilidad**. Cualquiera puede hacer un algoritmo básico que corra a tiempos decentes, pero crear un programa que maneje cientos de miles de requests y miles de eventos es otro mundo. Estructurar correctamente el programa, elegir con criterio las estructuras de datos, modularizar de forma ordenada y saber medir la eficiencia, permite construir un sistema que resista el paso del tiempo y los aumentos de requisitos (algo muy común en la vida real).
+
+Cada uno de estos cuatro elementos aporta algo distinto:
+
+- **POO:** encapsula la complejidad. Quien usa la clase no necesita saber qué hay debajo. Por ejemplo, `priority_queue.add(event)` no expone el `heapq` ni la tupla `(priority, counter, event)` interna.
+- **Modularidad:** permite cambiar implementaciones sin tocar el resto del sistema. Si mañana se decide reemplazar el `dict` del `Index` por una tabla hash propia, sólo se modifica `storage/index.py`.
+- **Estructuras:** el rendimiento real depende de qué hay adentro. La misma API puede ser O(1) o O(n) según la estructura elegida.
+- **Medición:** sin benchmark, las decisiones serían intuición. Con `timeit` y `tracemalloc` (punto 3), las decisiones se justifican con datos.
+
+Sobre mantenibilidad puntualmente: un código bien estructurado es un código fácil de mantener, y lo digo por mucha experiencia propia. He visto código legacy tan mal estructurado que hacer el más simple de los cambios puede convertirse en un dolor de cabeza enorme — y es exactamente lo que la separación por responsabilidades busca evitar.
+
+
 ## Uso de herramientas de IA
 
 Para este trabajo utilicé **Claude Code (Anthropic)** como herramienta de acompañamiento conceptual, en línea con lo permitido por la consigna del examen.
@@ -158,3 +195,114 @@ Para este trabajo utilicé **Claude Code (Anthropic)** como herramienta de acomp
 ### Aclaración explícita
 
 **Esta declaración fue escrita por mí.** El contenido de este README, incluyendo esta misma sección, refleja mi propio criterio sobre el uso que hice de la herramienta. La IA cumplió un rol de **tutoría iterativa**, no de resolución automática del examen.
+
+---
+
+## Anexo — Diálogos con IA
+
+A continuación, una selección de diálogos representativos del proceso, mostrando preguntas concretas, fragmentos relevantes de respuesta y cómo cada uno aportó al trabajo.
+
+### Diálogo 1 — Por dónde empezar el punto 1 (POO + modularidad)
+
+**Pregunta:** ¿Qué pide exactamente el punto 1 del examen y qué clases tengo que crear?
+
+**Fragmento relevante de la respuesta:**
+
+> Te están dando los nombres de las clases ya elegidos: `Event`, `EventStore`, `Index`, `Router`, `TextAnalyzer`. Cada una tiene una responsabilidad clara dentro del caso:
+>
+> - `Event` → representa un incidente. Es el "objeto de dominio".
+> - `EventStore` → almacena la colección de eventos.
+> - `Index` → estructura de acceso rápido por clave (se conecta con el punto 4).
+> - `Router` → maneja la red de rutas (origen → destino).
+> - `TextAnalyzer` → busca patrones en el texto de los eventos.
+>
+> No te pide implementar todo el sistema funcionando. Te pide diseñar la arquitectura.
+
+**Cómo me ayudó:** entendí que el punto 1 era de **diseño**, no de implementación completa. Me ahorró tiempo enfocándome en la separación de responsabilidades antes de tipear código.
+
+---
+
+### Diálogo 2 — Cómo funciona internamente un heap
+
+**Pregunta:** ¿Podés explicarme cómo funciona un heap antes de usar `heapq`?
+
+**Fragmento relevante de la respuesta:**
+
+> Un heap es un árbol binario con dos reglas:
+>
+> 1. Está casi lleno (se completa por niveles, sin huecos).
+> 2. Propiedad de heap: cada padre cumple una relación de orden con sus hijos. En min-heap, el padre siempre es ≤ que sus hijos, así que la raíz es el mínimo.
+>
+> El truco está en que se guarda en una lista, no en un árbol con punteros: para el elemento en posición `i`, hijo izquierdo = `2*i+1`, hijo derecho = `2*i+2`, padre = `(i-1)//2`. Insertar y extraer son O(log n) porque la altura del árbol es log n.
+
+**Cómo me ayudó:** entendí **por qué** un heap es eficiente para una `PriorityQueue` (no porque sí, sino porque la raíz está siempre disponible en O(1) y las inserciones/extracciones son logarítmicas). Pude defender la decisión en el README en vez de copiar la elección.
+
+---
+
+### Diálogo 3 — Detección de bug en `PriorityQueue`
+
+**Pregunta:** Acabo de hacer la `PriorityQueue`, ¿podés revisarla?
+
+**Fragmento relevante de la respuesta:**
+
+> ❌ Bug crítico: `@add.setter` y `@get.getter` están mal usados.
+>
+> ```python
+> @add.setter
+> def add(self, item, priority):
+>     ...
+> ```
+>
+> Esto **no compila** — vas a tener `NameError: name 'add' is not defined`. Los decoradores `@property`/`@x.setter`/`@x.getter` son para crear **propiedades** (atributos calculados), **no métodos normales**. Sacá los decoradores. Que sean métodos normales.
+>
+> ⚠️ También falta el contador para desempates. Si dos eventos tienen la misma prioridad, Python va a comparar el `Event` y como no tiene `__lt__`, va a explotar con `TypeError`.
+
+**Cómo me ayudó:** la IA detectó dos bugs que yo no había visto: uno de sintaxis (decoradores mal usados) y uno conceptual (Python no sabe comparar dos `Event` cuando empata la prioridad). Me llevó a usar la tupla `(priority, counter, item)` como clave del heap.
+
+---
+
+### Diálogo 4 — Decoradores en Python (paralelo con JavaScript)
+
+**Pregunta:** Me pierdo con los decoradores. Yo vengo de JavaScript, ¿es lo mismo que envolver una función pasándola como argumento? ¿Cómo haría en JS?
+
+**Fragmento relevante de la respuesta:**
+
+> Es exactamente lo mismo que un Higher-Order Function en JS.
+>
+> En Python:
+>
+> ```python
+> @measure_time
+> def bubble_sort(arr): ...
+> ```
+>
+> es **equivalente a**:
+>
+> ```python
+> def bubble_sort(arr): ...
+> bubble_sort = measure_time(bubble_sort)
+> ```
+>
+> El `@` es solo azúcar sintáctica. No hace nada mágico, solo te ahorra la reasignación. Cuando dudes, traducí mentalmente `@decorator` a `fn = decorator(fn)`.
+
+**Cómo me ayudó:** sacó la magia del decorador y lo volvió un concepto familiar. A partir de ahí pude diseñar `measure_time` y `measure_memory` con confianza, y entender por qué hacía falta `@functools.wraps` cuando los apilaba.
+
+---
+
+### Diálogo 5 — Diferencia entre "misma clave" y "colisión" en hashing
+
+**Pregunta:** Mostré mi redacción del punto 4 sobre hashing y colisiones.
+
+**Fragmento relevante de la respuesta:**
+
+> Decís: "La colisión ocurre cuando tenemos la misma key para un hashmap". **Esto es incorrecto.** La misma key para un hashmap **no es una colisión** — es simplemente sobrescribir el valor.
+>
+> **La colisión real** ocurre cuando dos **keys distintas** producen el **mismo hash** (o el mismo bucket después del módulo). Por ejemplo, las keys `"hola"` y `"perro"` podrían tener hashes distintos, pero al hacer `hash % tamaño_tabla` caer en el mismo slot.
+
+**Cómo me ayudó:** corrigió un error conceptual importante en mi entrega original. El docente probablemente lo habría flagueado: "explicar colisiones" es una de las consignas literales del punto 4, así que tenerlo bien definido era crítico. Reescribí la sección con la definición correcta.
+
+---
+
+### Declaración de autoría
+
+Las decisiones de diseño, el código tipeado y los argumentos escritos en este README son **propios**. La IA cumplió un rol de tutoría conceptual y revisión iterativa, en línea con el uso permitido por la consigna del examen.
