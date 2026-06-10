@@ -117,3 +117,44 @@ La desventaja de Merge Sort es la **memoria adicional** que requiere para hacer 
 `sorted()` (Timsort de Python) le gana a ambos por amplio margen porque está implementado en C y combina Merge Sort con Insertion Sort, optimizado para datos del mundo real.
 
 En cuanto a búsquedas: Sequential es la más simple (no requiere ordenar), pero crece linealmente. Binary y Bisect son mucho más rápidas en listas grandes, pero tienen un costo "oculto": **necesitan la lista ordenada**, y en estos benchmarks el `sorted()` previo se incluye en la medición — por eso aparecen con memoria alta. Esto plantea un trade-off práctico: si vamos a buscar **una sola vez**, conviene secuencial. Si vamos a buscar **muchas veces**, conviene ordenar una vez y usar binaria.
+
+### Ejercicio 4
+
+#### Análisis
+
+Se optó por un `dict` (diccionario de Python) como índice. Implementar un hashmap a mano sería reinventar la rueda: Python ya lo trae implementado en C, con muy buena performance para búsquedas por clave (O(1) promedio).
+
+Se utilizó `id` para indexar el diccionario ya que es un valor único, lo cual es vital para trabajar con diccionarios. En un trabajo real seguramente se utilizaría un UUID y no un id numerado linealmente como hacemos aquí, pero para fines didácticos sirve.
+
+#### Sobre colisiones
+
+Una **colisión** ocurre cuando dos claves *distintas* producen el mismo hash (o caen en el mismo bucket de la tabla después del módulo). No es lo mismo que insertar dos veces la misma clave: eso simplemente sobrescribe el valor.
+
+Las dos estrategias clásicas para resolverlas son:
+
+- **Encadenamiento (separate chaining)**: cada bucket guarda una lista de pares `(clave, valor)` que comparten ese slot. Al buscar, se recorre la lista del bucket comparando claves.
+- **Direccionamiento abierto (open addressing)**: si el bucket está ocupado, se busca el siguiente disponible siguiendo alguna regla (linear probing, quadratic probing, etc.).
+
+Python usa una variante de direccionamiento abierto en su implementación de `dict`, y redimensiona automáticamente la tabla cuando se llena para mantener la performance. Como usuario no me tengo que preocupar por la función hash ni por las colisiones: el lenguaje las resuelve transparentemente, y por eso elegí no implementar una tabla hash propia.
+
+## Uso de herramientas de IA
+
+Para este trabajo utilicé **Claude Code (Anthropic)** como herramienta de acompañamiento conceptual, en línea con lo permitido por la consigna del examen.
+
+### En qué me ayudó la IA
+
+- **Explicaciones conceptuales**: cómo funciona internamente un heap, por qué `deque` es más eficiente que `list` para una cola FIFO, qué es Big-O y cómo se mide, cómo funcionan los decoradores en Python (con paralelos a JavaScript), qué hace `functools.wraps`.
+- **Detección de bugs y errores**: en cada iteración le mostré el código que escribía y me devolvía feedback indicando qué fallaba y por qué (por ejemplo: usar `@property.setter` en métodos comunes, comparar objetos sin `__lt__`, mezclar tipos en búsquedas binarias, falta de `random.shuffle` antes de medir un sort, etc.).
+- **Sugerencias de organización**: opciones para estructurar carpetas y módulos, cuándo conviene un wrapper sobre `heapq`/`deque`, alternativas para acumular datos de benchmarks (closure vs variable de módulo).
+- **Correcciones de redacción**: tildes, typos y reorganización de tablas en este README.
+
+### Qué hice yo
+
+- **Las decisiones de diseño**: estructura de carpetas, qué clase vive en cada módulo, qué responsabilidad tiene cada una, cómo se relacionan entre sí.
+- **El código tipeado**: las clases del sistema (`Event`, `EventStore`, `Index`, `TextAnalyzer`, `Router`), los wrappers (`PriorityQueue`, `IncidentQueue`), los algoritmos del punto 3 (búsquedas y ordenamientos), el script de benchmark.
+- **La justificación escrita**: lo que está en este README sobre por qué cada decisión (heap, deque, Bubble vs Merge, trade-offs) fue redactado por mí — la IA pulió forma y corrigió typos, pero los argumentos son míos.
+- **El criterio para iterar**: cada feedback de la IA fue una sugerencia. Yo decidía qué aplicar, qué descartar y cómo aplicarlo.
+
+### Aclaración explícita
+
+**Esta declaración fue escrita por mí.** El contenido de este README, incluyendo esta misma sección, refleja mi propio criterio sobre el uso que hice de la herramienta. La IA cumplió un rol de **tutoría iterativa**, no de resolución automática del examen.
