@@ -1,6 +1,5 @@
 from queues.priority_queue import PriorityQueue
 from queues.incident_queue import IncidentQueue 
-from router.router import Router
 from storage.event_store import EventStore
 from utils.utils import divider, generate_dummy_events
 
@@ -53,23 +52,6 @@ def main():
         print(f'Found event: {found_event.text}')
     else:
         print('Event not found.')
-    
-    divider()
-    print('Router Test:')
-    # Create an instance of the Router and add some routes
-    router = Router()
-    for event in events:
-        router.add_route(event.origin, event.destination)
-        
-    router.add_route("Backup-A", "Backup-B")
-    router.add_route("Backup-C", "Backup-D")
-    
-    print(f'Amount of zones: {router.zone_count()}')
-    print(f'Amount of connected zones: {router.zone_count()}')
-    print(f'System 0 ↔ System 50: {router.are_connected("System 0", "System 50")}')
-    print(f'System 0 ↔ Backup-A: {router.are_connected("System 0", "Backup-A")}') 
-    print(f'Backup-A ↔ Backup-B: {router.are_connected("Backup-A", "Backup-B")}')     # True
-    print(f'Backup-A ↔ Backup-C: {router.are_connected("Backup-A", "Backup-C")}')  
 
 if __name__ == "__main__":
     main()
