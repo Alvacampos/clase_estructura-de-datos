@@ -10,7 +10,7 @@ Alumno: Gonzalo Ramiro Alvarez Campos
 
 Cada parte de los ejercicios va a quedar en un PR por separado para que sea más fácil evaluar.
 
-# Plataforma de análisis de incidentes y rutas
+# Plataforma de análisis de incidentes y rutas Parte 1
 
 ## Descripción general
 
@@ -173,6 +173,88 @@ Cada uno de estos cuatro elementos aporta algo distinto:
 
 Sobre mantenibilidad puntualmente: un código bien estructurado es un código fácil de mantener, y lo digo por mucha experiencia propia. He visto código legacy tan mal estructurado que hacer el más simple de los cambios puede convertirse en un dolor de cabeza enorme — y es exactamente lo que la separación por responsabilidades busca evitar.
 
+
+# Plataforma de análisis de incidentes y rutas Parte 2
+
+## Descripción general (Parte 2)
+
+La segunda parte extiende el sistema de la Parte 1 con **estructuras avanzadas**, **grafos** y **algoritmos avanzados**. La idea es que el `Router` (que en la Parte 1 quedó como esqueleto) se convierta en el corazón del análisis de la red origen → destino, y que se sumen capacidades de búsqueda de patrones en texto y manejo de información sensible (RSA demostrativo).
+
+## Estructura del proyecto (actualizada para Parte 2)
+
+```
+Examen/
+├── main.py                       # archivo principal (orquestador)
+├── benchmark.py                  # script de benchmarks (Parte 1)
+├── models/
+│   └── event.py                  # modelo de los eventos
+├── storage/
+│   ├── event_store.py            # almacenamiento de los eventos
+│   └── index.py                  # índice por id (dict — Parte 1)
+├── analisys/
+│   └── text_analyzer.py          # análisis de textos de los eventos
+├── queues/
+│   ├── priority_queue.py         # cola de prioridad (heapq)
+│   └── incident_queue.py         # cola FIFO de incidentes (deque)
+├── trees/
+│   └── union_find.py             # Union-Find con path compression
+│                                 # y union by rank (Parte 2 - punto 1)
+├── router/
+│   └── router.py                 # red de rutas: usa Union-Find para
+│                                 # zonas conectadas (Parte 2 - punto 1)
+└── utils/
+    └── utils.py                  # decoradores de medición y helpers
+```
+
+## Decisiones de diseño (Parte 2)
+
+### Ejercicio 1
+
+**Opción elegida:** B — Union-Find con compresión de caminos + unión por rango.
+
+#### ¿Por qué Union-Find?
+
+La consigna del caso menciona "analizar red de rutas (grafos) y optimizar decisiones". Una pregunta natural en una red de incidentes es: **"¿estos dos sistemas están conectados (directa o indirectamente) por alguna ruta?"**. Union-Find responde esto en O(α(n)) ≈ O(1) amortizado, sin necesidad de recorrer el grafo entero cada vez.
+
+Otras razones por las que es apropiada:
+
+- **Implementación corta** y autocontenida.
+- **Se conecta naturalmente con grafos**: el algoritmo de Kruskal (árbol de expansión mínima del punto 2) usa Union-Find internamente.
+- **Aplicación concreta al caso**: agrupar zonas conectadas a partir de los pares (origen, destino) de los incidentes.
+
+#### Optimizaciones aplicadas
+
+- **Compresión de caminos (`find` recursivo con asignación)**: cada vez que se busca la raíz, se aplasta el árbol haciendo que cada nodo del camino apunte directo a la raíz. La próxima búsqueda es O(1).
+- **Unión por rango**: al unir dos árboles, el más bajo cuelga del más alto. Esto evita que los árboles degeneren en listas y mantiene la altura logarítmica.
+
+Combinando ambas, las operaciones `find`, `union` y `connected` son O(α(n)) ≈ O(1) amortizado, donde α es la inversa de la función de Ackermann (crece tan lento que para cualquier `n` realista, α(n) ≤ 4).
+
+#### Aplicación al sistema (`Router`)
+
+El `Router` que en la Parte 1 era un esqueleto ahora usa el `UnionFind` para mantener las **zonas conectadas** de la red. Cada vez que llega un incidente con (origen, destino), `add_route` los registra como nodos y los une en la misma zona. Después se puede preguntar:
+
+- `are_connected(a, b)` → ¿están en la misma zona? O(α(n)).
+- `zone_count()` → ¿cuántas zonas disjuntas hay? O(1).
+
+Para soportar incorporación dinámica de nodos (los origenes/destinos no se conocen de antemano), se extendió `UnionFind` con un método `add()` que agrega un elemento nuevo en O(1).
+
+#### Limitaciones conocidas
+
+- Union-Find **no permite "deshacer" uniones fácilmente**: si una ruta se cae y queremos desconectar una zona, hay que reconstruir desde cero. Para este caso no es problema porque los incidentes registrados no se "borran".
+- No reemplaza un grafo completo: no permite obtener el camino concreto entre dos nodos ni medir distancias. Para eso vamos a necesitar un grafo con BFS/Dijkstra (punto 2).
+
+#### Complejidades
+
+| Operación              | Complejidad        |
+| ---------------------- | ------------------ |
+| `UnionFind.find`       | O(α(n)) ≈ O(1)     |
+| `UnionFind.union`      | O(α(n)) ≈ O(1)     |
+| `UnionFind.connected`  | O(α(n)) ≈ O(1)     |
+| `UnionFind.num_sets`   | O(1)               |
+| `UnionFind.add`        | O(1)               |
+| `Router.add_route`     | O(α(n))            |
+| `Router.are_connected` | O(α(n))            |
+| `Router.zone_count`    | O(1)               |
 
 ## Uso de herramientas de IA
 
