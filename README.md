@@ -79,3 +79,41 @@ Las complejidades fueron explicadas en cada operación con docstrings, pero en r
 | `IncidentQueue` (deque) | `is_empty` / `size`                    | O(1)        |
 
 Se priorizó eficiencia haciendo un análisis de la *Big-O notation*: O(1) para las lecturas rápidas (raíz del min-heap, ambos extremos del deque) y O(log n) para inserción/extracción en el heap.
+
+### Ejercicio 3
+
+**Algoritmos elegidos:** Bubble Sort (O(n²)) y Merge Sort (O(n log n)). Se eligió uno simple y uno eficiente para que la diferencia de comportamiento se note al crecer el tamaño de los datos.
+
+**Búsquedas comparadas:** búsqueda secuencial (O(n)), búsqueda binaria propia (O(log n)) y `bisect` del módulo estándar.
+
+**Baseline:** `sorted()` de Python (Timsort, implementado en C).
+
+#### Resultados (medidos con `timeit` y `tracemalloc`)
+
+##### Tiempo de ejecución (segundos)
+
+|     n | binary_search | sequential_search | bisect_search | bubble_sort | merge_sort | sorted (Timsort) |
+| ----: | ------------: | ----------------: | ------------: | ----------: | ---------: | ---------------: |
+|   100 |      0.000017 |          0.000004 |      0.000014 |    0.000397 |   0.000138 |         0.000005 |
+|   500 |      0.000068 |          0.000063 |      0.000053 |    0.047075 |   0.000901 |         0.000023 |
+| 1.000 |      0.000120 |          0.000158 |      0.000115 |    0.358785 |   0.004042 |         0.000055 |
+
+##### Memoria pico (MB)
+
+|     n | binary_search | sequential_search | bisect_search | bubble_sort | merge_sort | sorted (Timsort) |
+| ----: | ------------: | ----------------: | ------------: | ----------: | ---------: | ---------------: |
+|   100 |      0.001032 |          0.000585 |      0.001160 |    0.000681 |   0.002032 |         0.001433 |
+|   500 |      0.012336 |          0.000633 |      0.012336 |    0.000633 |   0.008536 |         0.008384 |
+| 1.000 |      0.024320 |          0.000633 |      0.024320 |    0.000633 |   0.016456 |         0.016384 |
+
+#### Análisis
+
+Bubble Sort se dispara: su complejidad es cuadrática **O(n²)**, así que cuanto más grande es el arreglo, peor es la performance. Recorre la lista una y otra vez moviendo elementos constantemente, lo cual es extremadamente costoso. Pasar de 100 a 1.000 elementos lo hace ~900x más lento.
+
+Merge Sort se degrada mucho menos rápido porque es **O(n log n)**: divide el arreglo en mitades sucesivamente y luego las une ordenadas. Es la opción razonable para arreglos grandes.
+
+La desventaja de Merge Sort es la **memoria adicional** que requiere para hacer esas particiones (se ve en la tabla: ~16 MB pico contra los ~0 MB de Bubble Sort, que es *in-place*). Es el clásico **trade-off tiempo vs memoria**: Merge sacrifica memoria para ganar tiempo.
+
+`sorted()` (Timsort de Python) le gana a ambos por amplio margen porque está implementado en C y combina Merge Sort con Insertion Sort, optimizado para datos del mundo real.
+
+En cuanto a búsquedas: Sequential es la más simple (no requiere ordenar), pero crece linealmente. Binary y Bisect son mucho más rápidas en listas grandes, pero tienen un costo "oculto": **necesitan la lista ordenada**, y en estos benchmarks el `sorted()` previo se incluye en la medición — por eso aparecen con memoria alta. Esto plantea un trade-off práctico: si vamos a buscar **una sola vez**, conviene secuencial. Si vamos a buscar **muchas veces**, conviene ordenar una vez y usar binaria.
