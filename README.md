@@ -199,6 +199,10 @@ Examen/
 ├── trees/
 │   └── union_find.py             # Union-Find con path compression
 │                                 # y union by rank (Parte 2 - punto 1)
+├── graphs/
+│   └── graph.py                  # grafo no dirigido y ponderado:
+│                                 # BFS, DFS, Dijkstra, Kruskal MST
+│                                 # (Parte 2 - punto 2)
 ├── router/
 │   └── router.py                 # red de rutas: usa Union-Find para
 │                                 # zonas conectadas (Parte 2 - punto 1)
@@ -255,6 +259,74 @@ Para soportar incorporación dinámica de nodos (los origenes/destinos no se con
 | `Router.add_route`     | O(α(n))            |
 | `Router.are_connected` | O(α(n))            |
 | `Router.zone_count`    | O(1)               |
+
+### Ejercicio 2
+
+#### Modelado del grafo
+
+La red origen → destino se modeló como un **grafo no dirigido y ponderado**:
+
+- **No dirigido**: una ruta entre A y B funciona en ambos sentidos. Internamente, `add_edge(A, B, w)` agrega la arista en las dos listas de adyacencia.
+- **Ponderado**: cada arista tiene un peso (latencia simulada). Sin pesos, Dijkstra y Kruskal pierden sentido.
+- **Lista de adyacencia**: `dict` donde cada nodo mapea a una lista de tuplas `(vecino, peso)`. Memoria O(V + E), apropiada para grafos dispersos como esta red.
+
+#### Algoritmos implementados
+
+- **BFS (Breadth-First Search)**: exploración por niveles desde un nodo. Usa una cola FIFO (`deque`). Sirve para alcance y, sin pesos, para camino más corto en número de aristas.
+- **DFS (Depth-First Search)**: exploración profundizando antes de volver. Implementado de forma recursiva con un helper `_dfs_visit`. Sirve para detectar ciclos, componentes conectadas y exploraciones exhaustivas.
+- **Dijkstra (`shortest_distances`)**: distancia mínima desde un nodo a todos los demás, sobre un grafo con pesos no negativos. Usa `heapq` como cola de prioridad. El truco está en que un mismo nodo puede entrar varias veces a la PQ con distintas distancias; al sacarlo se descartan las versiones "viejas" con `if current_dist > distances[current]: continue`.
+- **Kruskal (`minimum_spanning_tree`)**: árbol de expansión mínima. Ordena las aristas por peso y las va agregando al MST si no forman ciclo. La detección de ciclos se hace con el `UnionFind` del Ejercicio 1, lo cual conecta directamente los dos puntos de esta parte.
+
+#### Aplicación al caso
+
+- **BFS / DFS** → "¿qué sistemas son alcanzables desde X?".
+- **Dijkstra** → "¿cuál es la ruta de menor latencia entre dos sistemas?".
+- **Kruskal MST** → "¿cuál es el conjunto mínimo de rutas para mantener todos los centros conectados?".
+
+#### Complejidades
+
+| Operación                       | Complejidad         | Notas                             |
+| ------------------------------- | ------------------- | --------------------------------- |
+| `Graph.add_node`                | O(1) promedio       | acceso a `dict`                   |
+| `Graph.add_edge`                | O(1) promedio       | append en ambas listas            |
+| `Graph.neighbors`               | O(1) promedio       | acceso a `dict`                   |
+| `Graph.bfs`                     | O(V + E)            | cada nodo y arista visitados 1 vez |
+| `Graph.dfs`                     | O(V + E)            | igual que BFS                     |
+| `Graph.shortest_distances`      | O((V + E) log V)    | con `heapq` como PQ               |
+| `Graph.minimum_spanning_tree`   | O(E log E)          | dominado por el sort de aristas   |
+
+#### Limitaciones conocidas
+
+- **Multi-aristas y self-loops**: el grafo permite agregar varias aristas entre los mismos nodos y aristas que conectan un nodo consigo mismo. Para este caso no fue problema, pero si se quisiera grafo simple habría que filtrar en `add_edge`.
+- **Pesos negativos**: Dijkstra **no funciona** con pesos negativos. Para esos casos se necesitaría Bellman-Ford. En el caso del examen las latencias son siempre positivas.
+- **Grafo desconectado**: si hay zonas no alcanzables desde el `start`, Dijkstra las devuelve con distancia `float('inf')`. Kruskal en ese caso devolvería un *bosque* de expansión, no un único árbol.
+
+#### Mediciones
+
+Resultados de `benchmark.py` sobre grafos construidos a partir de eventos (cadena lineal con pesos aleatorios entre 1 y 100):
+
+##### Tiempo (segundos)
+
+|   n | BFS      | DFS      | Dijkstra | Kruskal  |
+| --: | -------: | -------: | -------: | -------: |
+|  51 | 0.000042 | 0.000043 | 0.000128 | 0.000121 |
+| 201 | 0.000123 | 0.000223 | 0.000450 | 0.000346 |
+| 501 | 0.000342 | 0.000827 | 0.001135 | 0.001076 |
+
+##### Memoria pico (MB)
+
+|   n | BFS      | DFS      | Dijkstra | Kruskal  |
+| --: | -------: | -------: | -------: | -------: |
+|  51 | 0.003888 | 0.005128 | 0.003641 | 0.010304 |
+| 201 | 0.011872 | 0.019912 | 0.014265 | 0.034216 |
+| 501 | 0.044448 | 0.061192 | 0.029169 | 0.080928 |
+
+##### Análisis breve
+
+- **BFS / DFS** crecen aproximadamente lineal con n (O(V + E)). DFS recursivo gasta un poco más de memoria por la pila de llamadas.
+- **Dijkstra** es ~2-3x más lento que BFS porque cada `heappush`/`heappop` cuesta O(log V) y se hace varias veces por nodo.
+- **Kruskal** tiene la memoria pico más alta porque construye una lista ordenada de aristas y mantiene el `UnionFind` con `parent` y `rank` en paralelo. El tiempo está dominado por el sort: O(E log E).
+- En todos los casos la diferencia con la cadena de eventos del ejemplo (V ≈ E + 1) es chica; en grafos densos reales Kruskal y Dijkstra empiezan a despegarse mucho de BFS/DFS.
 
 ## Uso de herramientas de IA
 
