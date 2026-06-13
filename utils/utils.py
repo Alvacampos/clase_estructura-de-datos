@@ -1,19 +1,25 @@
 import timeit
+import tracemalloc
 from functools import wraps
+
 from models.event import Event
 
 _bench_data = []
 
+
 def divider():
     print("-" * 50)
-    
+
+
 def get_bench_table():
     """Return the accumulated benchmark data."""
     return _bench_data
 
+
 def reset_bench_table():
     """Clear all benchmark data."""
     _bench_data.clear()
+
 
 def print_bench_table():
     """Print the accumulated benchmark data as a comparative table.
@@ -25,7 +31,6 @@ def print_bench_table():
         print("(bench table is empty)")
         return
 
-    # Reorganize: lookup[func][n][metric] = value
     lookup = {}
     sizes = set()
     funcs = []
@@ -40,7 +45,6 @@ def print_bench_table():
 
     sizes = sorted(sizes, key=lambda x: (x is None, x))
 
-    # Header
     name_w = 12
     print()
     print("=" * (10 + len(funcs) * (name_w * 2 + 3)))
@@ -62,7 +66,7 @@ def print_bench_table():
         print(row + "  ".join(cells))
     print("=" * (10 + len(funcs) * (name_w * 2 + 3)))
 
-    
+
 def measure_time(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -82,7 +86,6 @@ def measure_time(func):
 
 
 def measure_memory(func):
-    import tracemalloc
     @wraps(func)
     def wrapper(*args, **kwargs):
         tracemalloc.start()

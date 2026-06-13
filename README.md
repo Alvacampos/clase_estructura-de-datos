@@ -203,6 +203,10 @@ Examen/
 │   └── graph.py                  # grafo no dirigido y ponderado:
 │                                 # BFS, DFS, Dijkstra, Kruskal MST
 │                                 # (Parte 2 - punto 2)
+├── crypto/
+│   └── rsa.py                    # RSA educativo: gcd, extended_gcd,
+│                                 # mod_inverse, clase RSA
+│                                 # (Parte 2 - punto 3)
 ├── router/
 │   └── router.py                 # red de rutas: usa Union-Find para
 │                                 # zonas conectadas (Parte 2 - punto 1)
@@ -327,6 +331,107 @@ Resultados de `benchmark.py` sobre grafos construidos a partir de eventos (caden
 - **Dijkstra** es ~2-3x más lento que BFS porque cada `heappush`/`heappop` cuesta O(log V) y se hace varias veces por nodo.
 - **Kruskal** tiene la memoria pico más alta porque construye una lista ordenada de aristas y mantiene el `UnionFind` con `parent` y `rank` en paralelo. El tiempo está dominado por el sort: O(E log E).
 - En todos los casos la diferencia con la cadena de eventos del ejemplo (V ≈ E + 1) es chica; en grafos densos reales Kruskal y Dijkstra empiezan a despegarse mucho de BFS/DFS.
+
+### Ejercicio 3
+
+**Opciones elegidas:** dos de tres permitidas:
+
+1. **Análisis de texto**: búsqueda de patrones con **fuerza bruta vs KMP** (Knuth-Morris-Pratt).
+2. **Teoría de números**: **RSA demostrativo** (cifrar/descifrar mensaje corto).
+
+#### Búsqueda de patrones (fuerza bruta vs KMP)
+
+##### ¿Qué problema resuelve?
+
+Dado un texto largo y un patrón (palabra o secuencia), encontrar **dónde aparece el patrón** dentro del texto. Aplicación al caso: buscar palabras clave (ej: `"incendio"`, `"caída"`) dentro de las descripciones de incidentes para disparar alertas.
+
+Ambos métodos están implementados como métodos de la clase `TextAnalyzer`:
+
+- `brute_force_search(text, pattern)` — comparación naive en cada posición. **O(n·m)**.
+- `kmp_search(text, pattern)` — usa la tabla LPS (Longest Prefix Suffix) precomputada para no retroceder en el texto. **O(n + m)**.
+
+##### Cómo se diferencian
+
+- **Fuerza bruta**: cuando hay un mismatch, retrocede el índice del texto y empieza a comparar desde la siguiente posición. En textos repetitivos, hace mucho trabajo redundante.
+- **KMP**: el índice del texto **nunca retrocede**. Cuando hay mismatch, usa la tabla LPS del patrón para saber cuántos caracteres del patrón sí siguen siendo válidos, y reanuda desde ahí.
+
+##### Mediciones
+
+Para que la diferencia se note, se usó un caso patológico (texto repetitivo `"aaaa...aaab"` y patrón `"aaaaa...aaab"`):
+
+|     n | Brute Force (s) | KMP (s)   | Speedup |
+| ----: | --------------: | --------: | ------: |
+|  1000 |        0.016893 |  0.000404 |    ~42x |
+| 10000 |        0.222571 |  0.004399 |    ~50x |
+| 50000 |        1.220592 |  0.024399 |    ~50x |
+
+##### Análisis breve
+
+- **Fuerza bruta crece cuadráticamente con `n`**: pasar de 10.000 a 50.000 caracteres hace que el tiempo se quintuplique con factor extra (multiplica por ~5.5x), tendencia coherente con O(n·m).
+- **KMP crece lineal**: cada 10x en `n` da aproximadamente 10x más tiempo, coherente con O(n + m).
+- **El precomputo de LPS es el "costo único" que paga KMP** (O(m)). En patrones cortos sobre textos largos es casi gratis comparado con el ahorro al recorrer el texto.
+- En textos "normales" (no patológicos) la diferencia es chica. KMP brilla en textos repetitivos o con muchos matches parciales.
+
+#### RSA demostrativo
+
+##### ¿Qué problema resuelve?
+
+Permite **cifrar información sensible** (por ejemplo, descripciones de incidentes con datos de sistemas afectados) de manera que solo quien tenga la **clave privada** pueda descifrarla. Aplicación al caso: la consigna del enunciado menciona "resguardar información sensible mediante encriptación (RSA a nivel demostrativo)".
+
+##### Cómo funciona
+
+1. Se eligen dos primos `p` y `q`.
+2. Se calcula `n = p * q` (módulo) y `phi(n) = (p-1)*(q-1)` (función totiente de Euler).
+3. Se elige un exponente público `e` coprimo con `phi(n)` (típicamente 65537).
+4. Se calcula el exponente privado `d` tal que `(d * e) mod phi(n) == 1`. Para esto se usa el **algoritmo extendido de Euclides**.
+5. **Clave pública**: `(n, e)`. **Clave privada**: `(n, d)`.
+
+Operaciones:
+
+- **Cifrar**: `c = m^e mod n`.
+- **Descifrar**: `m = c^d mod n`.
+
+La implementación vive en `crypto/rsa.py` y expone:
+
+- `gcd(a, b)` — máximo común divisor (Euclides).
+- `extended_gcd(a, b)` — versión extendida que devuelve también los coeficientes de Bézout.
+- `mod_inverse(e, phi)` — inverso modular usando `extended_gcd`.
+- `RSA(p, q, e=65537)` — clase con `encrypt(message)` y `decrypt(ciphertext)`. Acepta tanto enteros como strings (cifra carácter por carácter).
+
+##### Demo
+
+Con primos `p=61, q=53` (n=3233):
+
+```
+Public key  (n, e): (3233, 7)
+Private key (n, d): (3233, 1783)
+Encrypt int 42 -> 240; decrypt -> 42
+Encrypt "incidente-A:42" -> [3020, 1544, 24, 3020]... (14 ints)
+Decrypt -> "incidente-A:42"
+```
+
+##### Límites de seguridad por tamaños
+
+La seguridad de RSA depende de que **factorizar `n` (descomponerlo en `p * q`) sea computacionalmente caro**. Esa dificultad crece exponencialmente con el tamaño de los primos.
+
+| Tamaño de `n` | Estado |
+|---|---|
+| Hasta ~64 bits | Trivial de factorizar en milisegundos. **Sólo demo.** |
+| 512 bits | Factorizable en horas/días con recursos modernos. **Inseguro.** |
+| 1024 bits | Considerado **inseguro** desde 2010 aprox. |
+| 2048 bits | **Estándar mínimo actual** para uso real. |
+| 4096 bits | Recomendado para alta seguridad / largo plazo. |
+
+##### Limitaciones de esta implementación
+
+- **Primos chicos**: en el demo se usan primos del orden de decenas o centenas. Cualquiera puede factorizar `n=3233` mentalmente.
+- **Sin padding**: RSA "puro" sin padding (como OAEP) tiene vulnerabilidades conocidas (mismo mensaje siempre genera mismo cifrado, ataques por mensaje corto, etc.).
+- **Cifrado carácter por carácter**: cada carácter se cifra por separado, lo cual es ineficiente y muestra patrones (caracteres iguales generan cifrados iguales). En la práctica RSA se usa para cifrar **claves simétricas cortas**, no mensajes largos.
+- **Generación de primos no incluida**: el constructor recibe `p` y `q` como argumentos. Una implementación real debería generar primos grandes aleatoriamente con tests de primalidad.
+
+##### Mensaje a transmitir
+
+Esta implementación es **estrictamente didáctica**. Sirve para mostrar **cómo funciona** RSA matemáticamente (módulo, exponente público/privado, inverso modular), no para proteger información real.
 
 ## Uso de herramientas de IA
 

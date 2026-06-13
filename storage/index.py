@@ -30,7 +30,7 @@ class Index:
     def size(self):
         """O(1)."""
         return len(self._index)
-    
+
     def all(self):
         """Return all indexed events. O(n)."""
         return list(self._index.values())

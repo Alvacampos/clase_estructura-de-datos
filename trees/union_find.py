@@ -3,6 +3,8 @@
     This data structure is used to keep track of a set of elements partitioned into disjoint subsets
     and supports union and find operations efficiently.
 """
+
+
 class UnionFind:
     def __init__(self, n):
         """
@@ -13,7 +15,7 @@ class UnionFind:
         self.parent = list(range(n))
         self.rank = [0] * n
         self.count = n
-        
+
     def add(self):
         """
             Add a new element as its own set. Returns its index. O(1).
@@ -43,7 +45,6 @@ class UnionFind:
         root_y = self.find(y)
 
         if root_x != root_y:
-            # Union by rank
             if self.rank[root_x] > self.rank[root_y]:
                 self.parent[root_y] = root_x
             elif self.rank[root_x] < self.rank[root_y]:
@@ -52,16 +53,16 @@ class UnionFind:
                 self.parent[root_y] = root_x
                 self.rank[root_x] += 1
             self.count -= 1
-    
+
     def connected(self, x, y):
-        """ 
+        """
             The connected method checks if two elements x and y belong to the same set by comparing their roots.
             BigO: O(α(n))
-        """            
+        """
         return self.find(x) == self.find(y)
-    
+
     def num_sets(self):
-        """ 
+        """
             The num_sets method returns the number of disjoint sets.
             BigO: O(1)
         """

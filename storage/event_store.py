@@ -20,11 +20,11 @@ class EventStore:
         """Delete an event from the store and remove it from the index. O(1) average."""
         self._index.remove(event_id)
         self.events = [event for event in self.events if event.id != event_id]
-        
+
     def get_events(self):
         """Return all events. O(n)."""
         return self._index.all()
-    
+
     def search_by_id(self, event_id):
         """Return event by id using the index. O(1) average."""
         return self._index.search(event_id)
