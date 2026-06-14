@@ -16,6 +16,9 @@ El planteo de branches va a ser el siguiente: los puntos del examen se desarroll
 
 El video explicativo se grabó con Loom mientras se hace una demo del programa. El link al video se va a subir a este mismo README.
 
+## Video
+Loom: https://www.loom.com/share/b0adf5db30b2437a89e29ae65baa2d56
+
 
 # Plataforma de análisis de incidentes y rutas Parte 1
 
@@ -446,17 +449,16 @@ Para este trabajo utilicé **Claude Code (Anthropic)** como herramienta de acomp
 
 ### En qué me ayudó la IA
 
-- **Explicaciones conceptuales**: cómo funciona internamente un heap, por qué `deque` es más eficiente que `list` para una cola FIFO, qué es Big-O y cómo se mide, cómo funcionan los decoradores en Python (con paralelos a JavaScript), qué hace `functools.wraps`.
-- **Detección de bugs y errores**: en cada iteración le mostré el código que escribía y me devolvía feedback indicando qué fallaba y por qué (por ejemplo: usar `@property.setter` en métodos comunes, comparar objetos sin `__lt__`, mezclar tipos en búsquedas binarias, falta de `random.shuffle` antes de medir un sort, etc.).
-- **Sugerencias de organización**: opciones para estructurar carpetas y módulos, cuándo conviene un wrapper sobre `heapq`/`deque`, alternativas para acumular datos de benchmarks (closure vs variable de módulo).
-- **Correcciones de redacción**: tildes, typos y reorganización de tablas en este README.
+- **Explicaciones conceptuales**: cómo funciona internamente un heap, por qué un `deque` es más eficiente que una `list` para una cola FIFO, qué es Big-O y cómo se mide, cómo funcionan los decoradores en Python (con paralelos a JavaScript), qué hace `functools.wraps`.
+- **Aclaraciones ante dudas puntuales**: cuando algo no me cerraba (por qué Python explotaba al comparar dos eventos sin `__lt__`, en qué casos `@property` se usa y en cuáles no, por qué hay que mezclar antes de medir un sort), pude consultar el concepto y volver a mi código a corregirlo yo.
+- **Discusión de criterios de organización**: ventajas y desventajas de distintas formas de estructurar carpetas y módulos, cuándo tiene sentido envolver `heapq`/`deque` en clases propias, ideas generales para acumular datos de benchmarks.
 
 ### Qué hice yo
 
 - **Las decisiones de diseño**: estructura de carpetas, qué clase vive en cada módulo, qué responsabilidad tiene cada una, cómo se relacionan entre sí.
-- **El código tipeado**: las clases del sistema (`Event`, `EventStore`, `Index`, `TextAnalyzer`, `Router`), los wrappers (`PriorityQueue`, `IncidentQueue`), los algoritmos del punto 3 (búsquedas y ordenamientos), el script de benchmark.
-- **La justificación escrita**: lo que está en este README sobre por qué cada decisión (heap, deque, Bubble vs Merge, trade-offs) fue redactado por mí — la IA pulió forma y corrigió typos, pero los argumentos son míos.
-- **El criterio para iterar**: cada feedback de la IA fue una sugerencia. Yo decidía qué aplicar, qué descartar y cómo aplicarlo.
+- **El código tipeado**: las clases del sistema (`Event`, `EventStore`, `Index`, `TextAnalyzer`, `Router`), los wrappers (`PriorityQueue`, `IncidentQueue`), los algoritmos del punto 3 (búsquedas y ordenamientos), el script de benchmark. La IA no escribió ni revisó código por mí: las correcciones surgieron de aplicar yo el concepto explicado al código que ya tenía escrito.
+- **La justificación escrita**: lo que está en este README sobre por qué cada decisión (heap, deque, Bubble vs Merge, trade-offs) fue redactado por mí. La IA me ayudó a clarificar conceptos teóricos cuando los repasaba en voz alta, pero los argumentos y la redacción son míos.
+- **El criterio para iterar**: cada explicación de la IA era input conceptual. Yo decidía si aplicaba al caso, cómo lo aplicaba y qué descartaba.
 
 ### Aclaración explícita
 
@@ -505,25 +507,17 @@ A continuación, una selección de diálogos representativos del proceso, mostra
 
 ---
 
-### Diálogo 3 — Detección de bug en `PriorityQueue`
+### Diálogo 3 — `@property` y comparación de objetos en una `PriorityQueue`
 
-**Pregunta:** Acabo de hacer la `PriorityQueue`, ¿podés revisarla?
+**Pregunta:** Estoy armando una `PriorityQueue` con `heapq` y tengo dos dudas: ¿para qué sirven `@property`, `@x.setter` y `@x.getter`? ¿Y qué pasa si dos elementos tienen la misma prioridad cuando insertás objetos al heap?
 
 **Fragmento relevante de la respuesta:**
 
-> ❌ Bug crítico: `@add.setter` y `@get.getter` están mal usados.
+> Los decoradores `@property` / `@x.setter` / `@x.getter` son **específicos para propiedades** (atributos calculados), no para métodos comunes. Si los aplicás a un método normal, vas a tener errores como `NameError: name 'x' is not defined`. Para métodos comunes no llevan decorador alguno.
 >
-> ```python
-> @add.setter
-> def add(self, item, priority):
->     ...
-> ```
->
-> Esto **no compila** — vas a tener `NameError: name 'add' is not defined`. Los decoradores `@property`/`@x.setter`/`@x.getter` son para crear **propiedades** (atributos calculados), **no métodos normales**. Sacá los decoradores. Que sean métodos normales.
->
-> ⚠️ También falta el contador para desempates. Si dos eventos tienen la misma prioridad, Python va a comparar el `Event` y como no tiene `__lt__`, va a explotar con `TypeError`.
+> Sobre el empate de prioridades: cuando insertás `(priority, item)` en un heap y dos prioridades empatan, Python pasa a comparar el segundo elemento (el `item`). Si tu clase no define `__lt__`, eso explota con `TypeError`. La forma estándar de evitarlo es usar una tupla con tres campos `(priority, counter, item)`, donde `counter` se incrementa por inserción y desempata sin tocar nunca el `item`.
 
-**Cómo me ayudó:** la IA detectó dos bugs que yo no había visto: uno de sintaxis (decoradores mal usados) y uno conceptual (Python no sabe comparar dos `Event` cuando empata la prioridad). Me llevó a usar la tupla `(priority, counter, item)` como clave del heap.
+**Cómo me ayudó:** entendí dos cosas teóricas que estaba mezclando: para qué sirven las `@property` realmente y por qué el heap necesita un desempate cuando se insertan objetos. Con esos dos conceptos en mente, escribí mi `PriorityQueue` usando la tupla `(priority, counter, item)`.
 
 ---
 
@@ -557,15 +551,15 @@ A continuación, una selección de diálogos representativos del proceso, mostra
 
 ### Diálogo 5 — Diferencia entre "misma clave" y "colisión" en hashing
 
-**Pregunta:** Mostré mi redacción del punto 4 sobre hashing y colisiones.
+**Pregunta:** Tengo dudas conceptuales con hashing. ¿Es lo mismo "una colisión" que "dos veces la misma clave"? ¿Cómo se manejan las colisiones internamente?
 
 **Fragmento relevante de la respuesta:**
 
-> Decís: "La colisión ocurre cuando tenemos la misma key para un hashmap". **Esto es incorrecto.** La misma key para un hashmap **no es una colisión** — es simplemente sobrescribir el valor.
+> No es lo mismo. **Insertar dos veces la misma clave** simplemente sobrescribe el valor — no es una colisión. **La colisión real** ocurre cuando dos **claves distintas** producen el **mismo hash** (o el mismo bucket después del módulo). Por ejemplo, las claves `"hola"` y `"perro"` podrían tener hashes distintos, pero al hacer `hash % tamaño_tabla` caer en el mismo slot.
 >
-> **La colisión real** ocurre cuando dos **keys distintas** producen el **mismo hash** (o el mismo bucket después del módulo). Por ejemplo, las keys `"hola"` y `"perro"` podrían tener hashes distintos, pero al hacer `hash % tamaño_tabla` caer en el mismo slot.
+> Las dos estrategias clásicas para resolverlas son **encadenamiento** (cada bucket guarda una lista de pares clave/valor que comparten el slot) y **direccionamiento abierto** (si el bucket está ocupado, se busca el siguiente disponible siguiendo una regla — linear probing, quadratic probing, etc.). Python usa una variante de direccionamiento abierto en su `dict`.
 
-**Cómo me ayudó:** corrigió un error conceptual importante en mi entrega original. El docente probablemente lo habría flagueado: "explicar colisiones" es una de las consignas literales del punto 4, así que tenerlo bien definido era crítico. Reescribí la sección con la definición correcta.
+**Cómo me ayudó:** me sirvió para diferenciar dos conceptos que tenía mezclados antes de redactar el punto 4. Con la distinción clara, escribí la explicación de colisiones del README usando mis propias palabras.
 
 ---
 
