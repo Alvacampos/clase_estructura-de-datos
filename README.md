@@ -10,6 +10,16 @@ Alumno: Gonzalo Ramiro Alvarez Campos
 
 Cada parte de los ejercicios va a quedar en un PR por separado para que sea más fácil evaluar.
 
+El planteo de branches va a ser el siguiente: los puntos del examen se desarrollan en orden, cada nuevo punto tiene su propio branch y un PR que apunta al punto anterior. De esa manera cada PR refleja un avance concreto del desarrollo.
+
+**Para ver todo el examen completo hay que ir a la branch `p2-ejercicio3`**, que contiene el código final.
+
+El video explicativo se grabó con Loom mientras se hace una demo del programa. El link al video se va a subir a este mismo README.
+
+## Video
+Loom: https://www.loom.com/share/b0adf5db30b2437a89e29ae65baa2d56
+
+
 # Plataforma de análisis de incidentes y rutas Parte 1
 
 ## Descripción general
@@ -203,6 +213,10 @@ Examen/
 │   └── graph.py                  # grafo no dirigido y ponderado:
 │                                 # BFS, DFS, Dijkstra, Kruskal MST
 │                                 # (Parte 2 - punto 2)
+├── crypto/
+│   └── rsa.py                    # RSA educativo: gcd, extended_gcd,
+│                                 # mod_inverse, clase RSA
+│                                 # (Parte 2 - punto 3)
 ├── router/
 │   └── router.py                 # red de rutas: usa Union-Find para
 │                                 # zonas conectadas (Parte 2 - punto 1)
@@ -328,23 +342,123 @@ Resultados de `benchmark.py` sobre grafos construidos a partir de eventos (caden
 - **Kruskal** tiene la memoria pico más alta porque construye una lista ordenada de aristas y mantiene el `UnionFind` con `parent` y `rank` en paralelo. El tiempo está dominado por el sort: O(E log E).
 - En todos los casos la diferencia con la cadena de eventos del ejemplo (V ≈ E + 1) es chica; en grafos densos reales Kruskal y Dijkstra empiezan a despegarse mucho de BFS/DFS.
 
+### Ejercicio 3
+
+**Opciones elegidas:** dos de tres permitidas:
+
+1. **Análisis de texto**: búsqueda de patrones con **fuerza bruta vs KMP** (Knuth-Morris-Pratt).
+2. **Teoría de números**: **RSA demostrativo** (cifrar/descifrar mensaje corto).
+
+#### Búsqueda de patrones (fuerza bruta vs KMP)
+
+##### ¿Qué problema resuelve?
+
+Dado un texto largo y un patrón (palabra o secuencia), encontrar **dónde aparece el patrón** dentro del texto. Aplicación al caso: buscar palabras clave (ej: `"incendio"`, `"caída"`) dentro de las descripciones de incidentes para disparar alertas.
+
+Ambos métodos están implementados como métodos de la clase `TextAnalyzer`:
+
+- `brute_force_search(text, pattern)` — comparación naive en cada posición. **O(n·m)**.
+- `kmp_search(text, pattern)` — usa la tabla LPS (Longest Prefix Suffix) precomputada para no retroceder en el texto. **O(n + m)**.
+
+##### Cómo se diferencian
+
+- **Fuerza bruta**: cuando hay un mismatch, retrocede el índice del texto y empieza a comparar desde la siguiente posición. En textos repetitivos, hace mucho trabajo redundante.
+- **KMP**: el índice del texto **nunca retrocede**. Cuando hay mismatch, usa la tabla LPS del patrón para saber cuántos caracteres del patrón sí siguen siendo válidos, y reanuda desde ahí.
+
+##### Mediciones
+
+Para que la diferencia se note, se usó un caso patológico (texto repetitivo `"aaaa...aaab"` y patrón `"aaaaa...aaab"`):
+
+|     n | Brute Force (s) | KMP (s)   | Speedup |
+| ----: | --------------: | --------: | ------: |
+|  1000 |        0.016893 |  0.000404 |    ~42x |
+| 10000 |        0.222571 |  0.004399 |    ~50x |
+| 50000 |        1.220592 |  0.024399 |    ~50x |
+
+##### Análisis breve
+
+- **Fuerza bruta crece cuadráticamente con `n`**: pasar de 10.000 a 50.000 caracteres hace que el tiempo se quintuplique con factor extra (multiplica por ~5.5x), tendencia coherente con O(n·m).
+- **KMP crece lineal**: cada 10x en `n` da aproximadamente 10x más tiempo, coherente con O(n + m).
+- **El precomputo de LPS es el "costo único" que paga KMP** (O(m)). En patrones cortos sobre textos largos es casi gratis comparado con el ahorro al recorrer el texto.
+- En textos "normales" (no patológicos) la diferencia es chica. KMP brilla en textos repetitivos o con muchos matches parciales.
+
+#### RSA demostrativo
+
+##### ¿Qué problema resuelve?
+
+Permite **cifrar información sensible** (por ejemplo, descripciones de incidentes con datos de sistemas afectados) de manera que solo quien tenga la **clave privada** pueda descifrarla. Aplicación al caso: la consigna del enunciado menciona "resguardar información sensible mediante encriptación (RSA a nivel demostrativo)".
+
+##### Cómo funciona
+
+1. Se eligen dos primos `p` y `q`.
+2. Se calcula `n = p * q` (módulo) y `phi(n) = (p-1)*(q-1)` (función totiente de Euler).
+3. Se elige un exponente público `e` coprimo con `phi(n)` (típicamente 65537).
+4. Se calcula el exponente privado `d` tal que `(d * e) mod phi(n) == 1`. Para esto se usa el **algoritmo extendido de Euclides**.
+5. **Clave pública**: `(n, e)`. **Clave privada**: `(n, d)`.
+
+Operaciones:
+
+- **Cifrar**: `c = m^e mod n`.
+- **Descifrar**: `m = c^d mod n`.
+
+La implementación vive en `crypto/rsa.py` y expone:
+
+- `gcd(a, b)` — máximo común divisor (Euclides).
+- `extended_gcd(a, b)` — versión extendida que devuelve también los coeficientes de Bézout.
+- `mod_inverse(e, phi)` — inverso modular usando `extended_gcd`.
+- `RSA(p, q, e=65537)` — clase con `encrypt(message)` y `decrypt(ciphertext)`. Acepta tanto enteros como strings (cifra carácter por carácter).
+
+##### Demo
+
+Con primos `p=61, q=53` (n=3233):
+
+```
+Public key  (n, e): (3233, 7)
+Private key (n, d): (3233, 1783)
+Encrypt int 42 -> 240; decrypt -> 42
+Encrypt "incidente-A:42" -> [3020, 1544, 24, 3020]... (14 ints)
+Decrypt -> "incidente-A:42"
+```
+
+##### Límites de seguridad por tamaños
+
+La seguridad de RSA depende de que **factorizar `n` (descomponerlo en `p * q`) sea computacionalmente caro**. Esa dificultad crece exponencialmente con el tamaño de los primos.
+
+| Tamaño de `n` | Estado |
+|---|---|
+| Hasta ~64 bits | Trivial de factorizar en milisegundos. **Sólo demo.** |
+| 512 bits | Factorizable en horas/días con recursos modernos. **Inseguro.** |
+| 1024 bits | Considerado **inseguro** desde 2010 aprox. |
+| 2048 bits | **Estándar mínimo actual** para uso real. |
+| 4096 bits | Recomendado para alta seguridad / largo plazo. |
+
+##### Limitaciones de esta implementación
+
+- **Primos chicos**: en el demo se usan primos del orden de decenas o centenas. Cualquiera puede factorizar `n=3233` mentalmente.
+- **Sin padding**: RSA "puro" sin padding (como OAEP) tiene vulnerabilidades conocidas (mismo mensaje siempre genera mismo cifrado, ataques por mensaje corto, etc.).
+- **Cifrado carácter por carácter**: cada carácter se cifra por separado, lo cual es ineficiente y muestra patrones (caracteres iguales generan cifrados iguales). En la práctica RSA se usa para cifrar **claves simétricas cortas**, no mensajes largos.
+- **Generación de primos no incluida**: el constructor recibe `p` y `q` como argumentos. Una implementación real debería generar primos grandes aleatoriamente con tests de primalidad.
+
+##### Mensaje a transmitir
+
+Esta implementación es **estrictamente didáctica**. Sirve para mostrar **cómo funciona** RSA matemáticamente (módulo, exponente público/privado, inverso modular), no para proteger información real.
+
 ## Uso de herramientas de IA
 
 Para este trabajo utilicé **Claude Code (Anthropic)** como herramienta de acompañamiento conceptual, en línea con lo permitido por la consigna del examen.
 
 ### En qué me ayudó la IA
 
-- **Explicaciones conceptuales**: cómo funciona internamente un heap, por qué `deque` es más eficiente que `list` para una cola FIFO, qué es Big-O y cómo se mide, cómo funcionan los decoradores en Python (con paralelos a JavaScript), qué hace `functools.wraps`.
-- **Detección de bugs y errores**: en cada iteración le mostré el código que escribía y me devolvía feedback indicando qué fallaba y por qué (por ejemplo: usar `@property.setter` en métodos comunes, comparar objetos sin `__lt__`, mezclar tipos en búsquedas binarias, falta de `random.shuffle` antes de medir un sort, etc.).
-- **Sugerencias de organización**: opciones para estructurar carpetas y módulos, cuándo conviene un wrapper sobre `heapq`/`deque`, alternativas para acumular datos de benchmarks (closure vs variable de módulo).
-- **Correcciones de redacción**: tildes, typos y reorganización de tablas en este README.
+- **Explicaciones conceptuales**: cómo funciona internamente un heap, por qué un `deque` es más eficiente que una `list` para una cola FIFO, qué es Big-O y cómo se mide, cómo funcionan los decoradores en Python (con paralelos a JavaScript), qué hace `functools.wraps`.
+- **Aclaraciones ante dudas puntuales**: cuando algo no me cerraba (por qué Python explotaba al comparar dos eventos sin `__lt__`, en qué casos `@property` se usa y en cuáles no, por qué hay que mezclar antes de medir un sort), pude consultar el concepto y volver a mi código a corregirlo yo.
+- **Discusión de criterios de organización**: ventajas y desventajas de distintas formas de estructurar carpetas y módulos, cuándo tiene sentido envolver `heapq`/`deque` en clases propias, ideas generales para acumular datos de benchmarks.
 
 ### Qué hice yo
 
 - **Las decisiones de diseño**: estructura de carpetas, qué clase vive en cada módulo, qué responsabilidad tiene cada una, cómo se relacionan entre sí.
-- **El código tipeado**: las clases del sistema (`Event`, `EventStore`, `Index`, `TextAnalyzer`, `Router`), los wrappers (`PriorityQueue`, `IncidentQueue`), los algoritmos del punto 3 (búsquedas y ordenamientos), el script de benchmark.
-- **La justificación escrita**: lo que está en este README sobre por qué cada decisión (heap, deque, Bubble vs Merge, trade-offs) fue redactado por mí — la IA pulió forma y corrigió typos, pero los argumentos son míos.
-- **El criterio para iterar**: cada feedback de la IA fue una sugerencia. Yo decidía qué aplicar, qué descartar y cómo aplicarlo.
+- **El código tipeado**: las clases del sistema (`Event`, `EventStore`, `Index`, `TextAnalyzer`, `Router`), los wrappers (`PriorityQueue`, `IncidentQueue`), los algoritmos del punto 3 (búsquedas y ordenamientos), el script de benchmark. La IA no escribió ni revisó código por mí: las correcciones surgieron de aplicar yo el concepto explicado al código que ya tenía escrito.
+- **La justificación escrita**: lo que está en este README sobre por qué cada decisión (heap, deque, Bubble vs Merge, trade-offs) fue redactado por mí. La IA me ayudó a clarificar conceptos teóricos cuando los repasaba en voz alta, pero los argumentos y la redacción son míos.
+- **El criterio para iterar**: cada explicación de la IA era input conceptual. Yo decidía si aplicaba al caso, cómo lo aplicaba y qué descartaba.
 
 ### Aclaración explícita
 
@@ -393,25 +507,17 @@ A continuación, una selección de diálogos representativos del proceso, mostra
 
 ---
 
-### Diálogo 3 — Detección de bug en `PriorityQueue`
+### Diálogo 3 — `@property` y comparación de objetos en una `PriorityQueue`
 
-**Pregunta:** Acabo de hacer la `PriorityQueue`, ¿podés revisarla?
+**Pregunta:** Estoy armando una `PriorityQueue` con `heapq` y tengo dos dudas: ¿para qué sirven `@property`, `@x.setter` y `@x.getter`? ¿Y qué pasa si dos elementos tienen la misma prioridad cuando insertás objetos al heap?
 
 **Fragmento relevante de la respuesta:**
 
-> ❌ Bug crítico: `@add.setter` y `@get.getter` están mal usados.
+> Los decoradores `@property` / `@x.setter` / `@x.getter` son **específicos para propiedades** (atributos calculados), no para métodos comunes. Si los aplicás a un método normal, vas a tener errores como `NameError: name 'x' is not defined`. Para métodos comunes no llevan decorador alguno.
 >
-> ```python
-> @add.setter
-> def add(self, item, priority):
->     ...
-> ```
->
-> Esto **no compila** — vas a tener `NameError: name 'add' is not defined`. Los decoradores `@property`/`@x.setter`/`@x.getter` son para crear **propiedades** (atributos calculados), **no métodos normales**. Sacá los decoradores. Que sean métodos normales.
->
-> ⚠️ También falta el contador para desempates. Si dos eventos tienen la misma prioridad, Python va a comparar el `Event` y como no tiene `__lt__`, va a explotar con `TypeError`.
+> Sobre el empate de prioridades: cuando insertás `(priority, item)` en un heap y dos prioridades empatan, Python pasa a comparar el segundo elemento (el `item`). Si tu clase no define `__lt__`, eso explota con `TypeError`. La forma estándar de evitarlo es usar una tupla con tres campos `(priority, counter, item)`, donde `counter` se incrementa por inserción y desempata sin tocar nunca el `item`.
 
-**Cómo me ayudó:** la IA detectó dos bugs que yo no había visto: uno de sintaxis (decoradores mal usados) y uno conceptual (Python no sabe comparar dos `Event` cuando empata la prioridad). Me llevó a usar la tupla `(priority, counter, item)` como clave del heap.
+**Cómo me ayudó:** entendí dos cosas teóricas que estaba mezclando: para qué sirven las `@property` realmente y por qué el heap necesita un desempate cuando se insertan objetos. Con esos dos conceptos en mente, escribí mi `PriorityQueue` usando la tupla `(priority, counter, item)`.
 
 ---
 
@@ -445,15 +551,15 @@ A continuación, una selección de diálogos representativos del proceso, mostra
 
 ### Diálogo 5 — Diferencia entre "misma clave" y "colisión" en hashing
 
-**Pregunta:** Mostré mi redacción del punto 4 sobre hashing y colisiones.
+**Pregunta:** Tengo dudas conceptuales con hashing. ¿Es lo mismo "una colisión" que "dos veces la misma clave"? ¿Cómo se manejan las colisiones internamente?
 
 **Fragmento relevante de la respuesta:**
 
-> Decís: "La colisión ocurre cuando tenemos la misma key para un hashmap". **Esto es incorrecto.** La misma key para un hashmap **no es una colisión** — es simplemente sobrescribir el valor.
+> No es lo mismo. **Insertar dos veces la misma clave** simplemente sobrescribe el valor — no es una colisión. **La colisión real** ocurre cuando dos **claves distintas** producen el **mismo hash** (o el mismo bucket después del módulo). Por ejemplo, las claves `"hola"` y `"perro"` podrían tener hashes distintos, pero al hacer `hash % tamaño_tabla` caer en el mismo slot.
 >
-> **La colisión real** ocurre cuando dos **keys distintas** producen el **mismo hash** (o el mismo bucket después del módulo). Por ejemplo, las keys `"hola"` y `"perro"` podrían tener hashes distintos, pero al hacer `hash % tamaño_tabla` caer en el mismo slot.
+> Las dos estrategias clásicas para resolverlas son **encadenamiento** (cada bucket guarda una lista de pares clave/valor que comparten el slot) y **direccionamiento abierto** (si el bucket está ocupado, se busca el siguiente disponible siguiendo una regla — linear probing, quadratic probing, etc.). Python usa una variante de direccionamiento abierto en su `dict`.
 
-**Cómo me ayudó:** corrigió un error conceptual importante en mi entrega original. El docente probablemente lo habría flagueado: "explicar colisiones" es una de las consignas literales del punto 4, así que tenerlo bien definido era crítico. Reescribí la sección con la definición correcta.
+**Cómo me ayudó:** me sirvió para diferenciar dos conceptos que tenía mezclados antes de redactar el punto 4. Con la distinción clara, escribí la explicación de colisiones del README usando mis propias palabras.
 
 ---
 

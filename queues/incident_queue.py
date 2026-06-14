@@ -3,6 +3,7 @@
 """
 from collections import deque
 
+
 class IncidentQueue:
     """
         A simple queue implementation for managing incidents. Incidents are added to the end of the queue and retrieved from the front, following a first-in-first-out (FIFO) order.
@@ -32,7 +33,7 @@ class IncidentQueue:
             return self.queue.popleft()
         except IndexError:
             return None
-    
+
     def size(self):
         """
             BigO: O(1) for getting the size of the queue, as it simply returns the length of the deque.

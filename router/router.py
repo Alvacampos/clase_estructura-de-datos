@@ -1,4 +1,4 @@
-"""    
+"""
     This module contains the Router class, which is responsible for routing
     queries to the appropriate index.
 """
@@ -26,7 +26,7 @@ class Router:
             self._node_index[destination] = self._uf.add()
 
         self._uf.union(self._node_index[origin], self._node_index[destination])
-        
+
     def are_connected(self, origin, destination):
         """
             The are_connected method checks if the origin and destination nodes are connected.
@@ -35,7 +35,7 @@ class Router:
         if origin not in self._node_index or destination not in self._node_index:
             return False
         return self._uf.connected(self._node_index[origin], self._node_index[destination])
-    
+
     def zone_count(self):
         """
             The zone_count method returns the number of disjoint zones.

@@ -4,6 +4,7 @@
 """
 import heapq
 
+
 class PriorityQueue:
     """
         A priority queue implementation using a heap. Items are stored as tuples of (priority, count, item) to ensure that items with the same priority are returned in the order they were added.
@@ -15,10 +16,10 @@ class PriorityQueue:
 
     def is_empty(self):
         """
-            BigO: O(1) for checking if the priority queue is empty, as it simply checks if the list of elements is empty. 
+            BigO: O(1) for checking if the priority queue is empty, as it simply checks if the list of elements is empty.
         """
         return not self.pq
-    
+
     def add(self, item, priority):
         """
             BigO: O(log n) for adding an item to the priority queue, where n is the number of items in the queue. This is because the heapq.heappush operation maintains the heap property after adding a new item.
